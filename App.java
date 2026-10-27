@@ -95,9 +95,57 @@ public class App {
         }
     }
 
+    private static String escapeJson(String value) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '"' || ch == '\\') {
+                result.append('\\').append(ch);
+            } else if (ch < 0x20) {
+                result.append(String.format("\\u%04x", (int) ch));
+            } else {
+                result.append(ch);
+            }
+        }
+        return result.toString();
+    }
+
+    private static String todosJson() throws SQLException {
+        StringBuilder json = new StringBuilder("[");
+        try (Connection db = connect();
+                PreparedStatement stmt = db.prepareStatement("SELECT title, done FROM todos ORDER BY id");
+                ResultSet rows = stmt.executeQuery()) {
+            while (rows.next()) {
+                if (json.length() > 1)
+                    json.append(',');
+                json.append("{\"title\":\"").append(escapeJson(rows.getString("title")))
+                        .append("\",\"done\":").append(rows.getInt("done") != 0).append('}');
+            }
+        }
+        return json.append(']').toString();
+    }
+
     public static void main(String[] args) throws Exception {
         initDb(); // ★
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+        server.createContext("/api/todos", exchange -> {
+            if (!exchange.getRequestMethod().equals("GET")
+                    || !exchange.getRequestURI().getPath().equals("/api/todos")) {
+                respond(exchange, 404, "text/plain", "Not found");
+                return;
+            }
+            try {
+                byte[] body = todosJson().getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, body.length);
+                try (var output = exchange.getResponseBody()) {
+                    output.write(body);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                respond(exchange, 500, "text/plain", "Database error");
+            }
+        });
         server.createContext("/", exchange -> {
             String path = exchange.getRequestURI().getPath();
             String method = exchange.getRequestMethod();
