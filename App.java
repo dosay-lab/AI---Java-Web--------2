@@ -40,6 +40,14 @@ public class App {
         } // ★
     } // ★
 
+    private static void undone(int id) throws SQLException {
+        try (Connection db = connect();
+                PreparedStatement stmt = db.prepareStatement("UPDATE todos SET done = 0 WHERE id = ?")) {
+            stmt.setInt(1, id);
+            stmt.executeUpdate();
+        }
+    }
+
     private static void delete(int id) throws SQLException { // ★
         try (Connection db = connect();
                 PreparedStatement stmt = db.prepareStatement("DELETE FROM todos WHERE id = ?")) { // ★
@@ -70,7 +78,8 @@ public class App {
                 if (rows.getInt("done") != 0)
                     title = "<s>" + title + "</s>"; // ★
                 html.append("<li>").append(title).append(" <a href='/done?id=").append(id)
-                        .append("'>完了</a> <a href='/delete?id=").append(id).append("'>削除</a></li>"); // ★
+                        .append("'>完了</a> <a href='/undone?id=").append(id)
+                        .append("'>未完了</a> <a href='/delete?id=").append(id).append("'>削除</a></li>"); // ★
             } // ★
             html.append("</ul>");
             if (empty)
@@ -158,13 +167,16 @@ public class App {
                             add(title); // ★
                     }
                     redirect(exchange);
-                } else if ((path.equals("/done") || path.equals("/delete")) && method.equals("GET")) {
+                } else if ((path.equals("/done") || path.equals("/undone") || path.equals("/delete"))
+                        && method.equals("GET")) {
                     String query = exchange.getRequestURI().getQuery();
                     if (query != null && query.startsWith("id=")) {
                         try {
                             int id = Integer.parseInt(query.substring(3));
                             if (path.equals("/done"))
                                 done(id);
+                            else if (path.equals("/undone"))
+                                undone(id);
                             else
                                 delete(id); // ★
                         } catch (NumberFormatException ignored) {
