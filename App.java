@@ -33,14 +33,14 @@ public class App { // プログラム本体の名前を App にします。
                 html += "</ul>"; // 移動：箇条書きのHTMLを閉じます。
                 message = html; // 移動：組み立てたHTMLを応答にします。
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8"); // 移動：HTMLをUTF-8で返すと伝えます。
-            } else if (path.equals("/hello")) { // パスが「/hello」かどうか比べます。
-                String query = exchange.getRequestURI().getRawQuery(); // URLの「?」より後ろを取り出します。
-                String name = query.substring(5); // 「name=」の後ろを取り出します。
-                message = "こんにちは、" + name + "さん！"; // 名前を応答の文に入れます。
-            } else if (path.equals("/bye")) { // パスが「/bye」かどうか比べます。
-                message = "さようなら！";
             } else {
-                message = "ページが見つかりません";
+                if (path.equals("/hello")) { // パスが「/hello」かどうか比べます。
+                    message = "こんにちは！";
+                } else if (path.equals("/bye")) { // パスが「/bye」かどうか比べます。
+                    message = "さようなら！";
+                } else {
+                    message = "ページが見つかりません";
+                }
             }
             byte[] body = message.getBytes("UTF-8"); // 文字を送信用のデータに変えます。
             exchange.sendResponseHeaders(200, body.length); // 成功したこととデータの長さを伝えます。
