@@ -2,19 +2,73 @@ import com.sun.net.httpserver.HttpServer; // Webサーバーの機能を使い�
 import java.net.InetSocketAddress; // 待ち受ける番号を指定する機能を使います。
 import java.net.URLDecoder; // 追加：フォームから届いた日本語を元に戻すために使います。
 import java.nio.charset.StandardCharsets; // 追加：UTF-8の文字コードを指定するために使います。
+import java.nio.file.Files; // ファイルを読み書きします。
+import java.nio.file.Path; // 保存先を表します。
 import java.util.ArrayList; // 追加：Todoを入れるリストを作るために使います。
 import java.util.List; // 追加：Todoを入れるリストの型を使います。
 
 public class App { // プログラム本体の名前を App にします。
     static List<Todo> todos = new ArrayList<>(); // ★変更
-    static int nextId = 1; // ★変更
+    static int nextId = 1; // 次に追加するTodoの番号です。
+
+    static void save() throws java.io.IOException { // 一覧をUTF-8で保存します。
+        List<String> lines = new ArrayList<>(); // 書き出す各行を用意します。
+        for (Todo todo : todos) { // 全件を順番に処理します。
+            String title = todo.getTitle().replace("\r", " ").replace("\n", " "); // 1件を1行に収めます。
+            title = "\"" + title.replace("\"", "\"\"") + "\""; // カンマや引用符をCSV形式で保護します。
+            lines.add(todo.getId() + "," + (todo.isDone() ? "1" : "0") + "," + title); // id,done,titleの順に並べます。
+        }
+        Files.write(Path.of("todos.csv"), lines, StandardCharsets.UTF_8); // 全件をファイルへ書き出します。
+    }
+
+    static void load() throws java.io.IOException { // 保存済みの一覧を読み込みます。
+        Path file = Path.of("todos.csv"); // 保存先を指定します。
+        if (!Files.exists(file))
+            return; // ファイルがなければ空のまま起動します。
+        List<Todo> loaded = new ArrayList<>(); // 読み込み結果を一時的に保持します。
+        int maxId = 0; // 最大のidを記録します。
+        for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) { // UTF-8で各行を読みます。
+            String[] fields = line.split(",", 3); // id、完了状態、タイトルに分けます。
+            if (fields.length != 3)
+                throw new java.io.IOException("不正なCSV行: " + line); // 欠けた行を検出します。
+            try { // 数値とCSVの引用符を検査します。
+                int id = Integer.parseInt(fields[0]); // idを復元します。
+                if (id < 1 || id == Integer.MAX_VALUE)
+                    throw new IllegalArgumentException(); // 次のidを作れない値を防ぎます。
+                if (!fields[1].equals("0") && !fields[1].equals("1"))
+                    throw new IllegalArgumentException(); // 完了状態を検査します。
+                String value = fields[2]; // タイトル部分を取り出します。
+                StringBuilder title = new StringBuilder(); // 引用符を外したタイトルを組み立てます。
+                if (value.startsWith("\"")) { // 引用されたタイトルを処理します。
+                    if (!value.endsWith("\"") || value.length() < 2)
+                        throw new IllegalArgumentException(); // 閉じ引用符を確認します。
+                    for (int i = 1; i < value.length() - 1; i++) { // 内容を1文字ずつ読みます。
+                        char c = value.charAt(i); // 現在の文字を取得します。
+                        if (c == '"') { // 引用符ならエスケープを確認します。
+                            if (i + 1 >= value.length() - 1 || value.charAt(++i) != '"')
+                                throw new IllegalArgumentException(); // 二重引用符だけを許します。
+                        }
+                        title.append(c); // 復元した文字を追加します。
+                    }
+                } else { // 引用されていないタイトルを処理します。
+                    title.append(value); // 既存の単純なCSV行にも対応します。
+                }
+                Todo todo = new Todo(id, title.toString()); // Todoを再作成します。
+                todo.setDone(fields[1].equals("1")); // 完了状態を戻します。
+                loaded.add(todo); // 復元したTodoを一覧へ追加します。
+                maxId = Math.max(maxId, id); // 最大idを更新します。
+            } catch (IllegalArgumentException e) { // 不正な値をまとめて扱います。
+                throw new java.io.IOException("不正なCSV行: " + line, e); // 読み込みエラーを通知します。
+            }
+        }
+        todos.clear(); // 復元前の一覧を空にします。
+        todos.addAll(loaded); // 読み込んだ全件を反映します。
+        nextId = maxId + 1; // 最大idの次を採番します。
+    }
 
     public static void main(String[] args) throws Exception { // ここからプログラムを始めます。
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0); // 8080 番で待ち受けるサーバーを用意します。
-        todos.add(new Todo(nextId++, "牛乳を買う")); // ★変更
-        Todo egg = new Todo(nextId++, "卵を買う"); // ★変更
-        egg.setDone(true); // ★変更
-        todos.add(egg); // ★変更
+        load(); // 起動時に保存済みのTodoを復元します。
         server.createContext("/", exchange -> { // 「/」にアクセスされたときの処理を始めます。
             String path = exchange.getRequestURI().getPath(); // アクセスされたパスを取り出します。
             String method = exchange.getRequestMethod(); // 追加：送信方法がGETかPOSTかを取り出します。
@@ -27,6 +81,7 @@ public class App { // プログラム本体の名前を App にします。
                 if (!title.isEmpty()) { // ★変更
                     todos.add(new Todo(nextId, title)); // ★変更
                     nextId++; // ★変更
+                    save(); // 追加後の一覧を保存します。
                 } // 追加：空かどうかの確認を終えます。
                 exchange.getResponseHeaders().set("Location", "/"); // 追加：戻る先を「/」に指定します。
                 exchange.sendResponseHeaders(303, -1); // 追加：入力後に「/」を開くよう伝えます。
@@ -40,6 +95,7 @@ public class App { // プログラム本体の名前を App にします。
                         for (Todo todo : todos) { // ★追加
                             if (todo.getId() == id) { // ★追加
                                 todo.setDone(true); // ★追加
+                                save(); // 完了状態を保存します。
                                 break; // ★追加
                             } // ★追加
                         } // ★追加
@@ -55,7 +111,8 @@ public class App { // プログラム本体の名前を App にします。
                 if (query != null && query.startsWith("id=") && query.length() > 3) { // ★追加
                     try { // ★追加
                         int id = Integer.parseInt(query.substring(3)); // ★追加
-                        todos.removeIf(todo -> todo.getId() == id); // ★追加
+                        if (todos.removeIf(todo -> todo.getId() == id))
+                            save(); // 削除したとき一覧を保存します。
                     } catch (NumberFormatException e) { // ★追加
                     } // ★追加
                 } // ★追加
