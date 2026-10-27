@@ -32,6 +32,37 @@ public class App { // プログラム本体の名前を App にします。
                 exchange.sendResponseHeaders(303, -1); // 追加：入力後に「/」を開くよう伝えます。
                 exchange.close(); // 追加：この応答を閉じます。
                 return; // 追加：ここで追加の処理を終えます。
+            } else if (path.equals("/done") && method.equals("GET")) { // ★追加
+                String query = exchange.getRequestURI().getQuery(); // ★追加
+                if (query != null && query.startsWith("id=") && query.length() > 3) { // ★追加
+                    try { // ★追加
+                        int id = Integer.parseInt(query.substring(3)); // ★追加
+                        for (Todo todo : todos) { // ★追加
+                            if (todo.getId() == id) { // ★追加
+                                todo.setDone(true); // ★追加
+                                break; // ★追加
+                            } // ★追加
+                        } // ★追加
+                    } catch (NumberFormatException e) { // ★追加
+                    } // ★追加
+                } // ★追加
+                exchange.getResponseHeaders().set("Location", "/"); // ★追加
+                exchange.sendResponseHeaders(303, -1); // ★追加
+                exchange.close(); // ★追加
+                return; // ★追加
+            } else if (path.equals("/delete") && method.equals("GET")) { // ★追加
+                String query = exchange.getRequestURI().getQuery(); // ★追加
+                if (query != null && query.startsWith("id=") && query.length() > 3) { // ★追加
+                    try { // ★追加
+                        int id = Integer.parseInt(query.substring(3)); // ★追加
+                        todos.removeIf(todo -> todo.getId() == id); // ★追加
+                    } catch (NumberFormatException e) { // ★追加
+                    } // ★追加
+                } // ★追加
+                exchange.getResponseHeaders().set("Location", "/"); // ★追加
+                exchange.sendResponseHeaders(303, -1); // ★追加
+                exchange.close(); // ★追加
+                return; // ★追加
             } else if (path.equals("/")) { // 追加：「/」でフォームとTodo一覧を表示します。
                 String html = "<form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // 追加：入力フォームと箇条書きを始めます。
                 for (Todo todo : todos) { // ★変更
@@ -39,7 +70,8 @@ public class App { // プログラム本体の名前を App にします。
                     if (todo.isDone()) { // ★変更
                         mark = " ✔"; // ★変更
                     } // ★変更
-                    html += "<li>" + todo.getTitle() + mark + "</li>"; // ★変更
+                    html += "<li>" + todo.getTitle() + mark + " <a href='/done?id=" + todo.getId()
+                            + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加
                 } // 移動：Todoを取り出す処理を終えます。
                 html += "</ul>"; // 移動：箇条書きのHTMLを閉じます。
                 message = html; // 移動：組み立てたHTMLを応答にします。
