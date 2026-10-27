@@ -73,11 +73,8 @@ public class App { // プログラム本体の名前を App にします。
                 }
                 html += "<ul>";
                 for (Todo todo : todos) { // ★変更
-                    String mark = ""; // ★変更
-                    if (todo.isDone()) { // ★変更
-                        mark = " ✔"; // ★変更
-                    } // ★変更
-                    html += "<li>" + todo.getTitle() + mark + " <a href='/done?id=" + todo.getId()
+                    String title = todo.isDone() ? "<s>" + todo.getTitle() + "</s>" : todo.getTitle();
+                    html += "<li>" + title + " <a href='/done?id=" + todo.getId()
                             + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加
                 } // 移動：Todoを取り出す処理を終えます。
                 html += "</ul></body></html>"; // 箇条書きとページのHTMLを閉じます。
