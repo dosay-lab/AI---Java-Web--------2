@@ -6,9 +6,15 @@ import java.util.ArrayList; // 追加：Todoを入れるリストを作るため
 import java.util.List; // 追加：Todoを入れるリストの型を使います。
 
 public class App { // プログラム本体の名前を App にします。
+    static List<Todo> todos = new ArrayList<>(); // ★変更
+    static int nextId = 1; // ★変更
+
     public static void main(String[] args) throws Exception { // ここからプログラムを始めます。
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0); // 8080 番で待ち受けるサーバーを用意します。
-        List<String> todos = new ArrayList<>(); // 追加：Todoを保存する空のリストを一度だけ作ります。
+        todos.add(new Todo(nextId++, "牛乳を買う")); // ★変更
+        Todo egg = new Todo(nextId++, "卵を買う"); // ★変更
+        egg.setDone(true); // ★変更
+        todos.add(egg); // ★変更
         server.createContext("/", exchange -> { // 「/」にアクセスされたときの処理を始めます。
             String path = exchange.getRequestURI().getPath(); // アクセスされたパスを取り出します。
             String method = exchange.getRequestMethod(); // 追加：送信方法がGETかPOSTかを取り出します。
@@ -17,9 +23,10 @@ public class App { // プログラム本体の名前を App にします。
             if (path.equals("/add") && method.equals("POST")) { // 追加：Todoの追加先へPOSTで送られたか調べます。
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8); // 追加：送られた内容をUTF-8で読みます。
                 String value = body.substring(5); // 追加：「todo=」の後ろを取り出します。
-                String todo = URLDecoder.decode(value, StandardCharsets.UTF_8); // 追加：日本語を元に戻します。
-                if (!todo.isEmpty()) { // 追加：空の入力は保存しません。
-                    todos.add(todo); // 追加：入力されたTodoをリストに入れます。
+                String title = URLDecoder.decode(value, StandardCharsets.UTF_8); // ★変更
+                if (!title.isEmpty()) { // ★変更
+                    todos.add(new Todo(nextId, title)); // ★変更
+                    nextId++; // ★変更
                 } // 追加：空かどうかの確認を終えます。
                 exchange.getResponseHeaders().set("Location", "/"); // 追加：戻る先を「/」に指定します。
                 exchange.sendResponseHeaders(303, -1); // 追加：入力後に「/」を開くよう伝えます。
@@ -27,19 +34,17 @@ public class App { // プログラム本体の名前を App にします。
                 return; // 追加：ここで追加の処理を終えます。
             } else if (path.equals("/")) { // 追加：「/」でフォームとTodo一覧を表示します。
                 String html = "<form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // 追加：入力フォームと箇条書きを始めます。
-                for (String todo : todos) { // 移動：Todoを1件ずつ取り出します。
-                    html += "<li>" + todo + "</li>"; // 移動：1件を箇条書きにします。
+                for (Todo todo : todos) { // ★変更
+                    String mark = ""; // ★変更
+                    if (todo.isDone()) { // ★変更
+                        mark = " ✔"; // ★変更
+                    } // ★変更
+                    html += "<li>" + todo.getTitle() + mark + "</li>"; // ★変更
                 } // 移動：Todoを取り出す処理を終えます。
                 html += "</ul>"; // 移動：箇条書きのHTMLを閉じます。
                 message = html; // 移動：組み立てたHTMLを応答にします。
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8"); // 移動：HTMLをUTF-8で返すと伝えます。
-            } else if (path.equals("/hello")) { // 変更：「/hello」の分岐を続けます。
-                String query = exchange.getRequestURI().getRawQuery(); // 追加：URLの「?」より後ろを取り出します。
-                String name = query.substring(5); // 追加：「name=」の後ろを切り出します。
-                message = "こんにちは、" + name + "さん！"; // 変更：名前をあいさつに入れます。
-            } else if (path.equals("/bye")) { // 変更：「/bye」の分岐を続けます。
-                message = "さようなら！";
-            } else {
+            } else { // ★変更
                 message = "ページが見つかりません";
             }
             byte[] body = message.getBytes("UTF-8"); // 文字を送信用のデータに変えます。
@@ -51,3 +56,31 @@ public class App { // プログラム本体の名前を App にします。
         System.out.println("サーバー起動: http://localhost:8080 （止めるときは Ctrl+C）"); // 起動したことを表示します。
     } // プログラムの開始処理を終えます。
 } // App の定義を終えます。
+
+class Todo { // ★変更
+    private final int id; // ★変更
+    private final String title; // ★変更
+    private boolean done; // ★変更
+
+    Todo(int id, String title) { // ★変更
+        this.id = id; // ★変更
+        this.title = title; // ★変更
+        this.done = false; // ★変更
+    } // ★変更
+
+    int getId() { // ★変更
+        return id; // ★変更
+    } // ★変更
+
+    String getTitle() { // ★変更
+        return title; // ★変更
+    } // ★変更
+
+    boolean isDone() { // ★変更
+        return done; // ★変更
+    } // ★変更
+
+    void setDone(boolean done) { // ★変更
+        this.done = done; // ★変更
+    } // ★変更
+} // ★変更
