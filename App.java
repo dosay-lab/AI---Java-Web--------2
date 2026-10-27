@@ -64,7 +64,14 @@ public class App { // プログラム本体の名前を App にします。
                 exchange.close(); // ★追加
                 return; // ★追加
             } else if (path.equals("/")) { // 追加：「/」でフォームとTodo一覧を表示します。
-                String html = "<form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // 追加：入力フォームと箇条書きを始めます。
+                String html = "<html><head><meta charset='UTF-8'><title>わたしのTodo</title>"
+                        + "<style>body { max-width: 600px; margin: 24px auto; padding: 0 16px; font-size: 16px; } input, button { font-size: 1em; }</style>"
+                        + "</head><body><h1>わたしのTodo</h1>"
+                        + "<form method='post' action='/add'><input name='todo'><button>追加</button></form>"; // 見出しと最小限のスタイルを追加します。
+                if (todos.isEmpty()) {
+                    html += "<p>やることは、いまゼロです</p>";
+                }
+                html += "<ul>";
                 for (Todo todo : todos) { // ★変更
                     String mark = ""; // ★変更
                     if (todo.isDone()) { // ★変更
@@ -73,7 +80,7 @@ public class App { // プログラム本体の名前を App にします。
                     html += "<li>" + todo.getTitle() + mark + " <a href='/done?id=" + todo.getId()
                             + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加
                 } // 移動：Todoを取り出す処理を終えます。
-                html += "</ul>"; // 移動：箇条書きのHTMLを閉じます。
+                html += "</ul></body></html>"; // 箇条書きとページのHTMLを閉じます。
                 message = html; // 移動：組み立てたHTMLを応答にします。
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8"); // 移動：HTMLをUTF-8で返すと伝えます。
             } else { // ★変更
